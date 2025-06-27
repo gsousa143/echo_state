@@ -6,13 +6,15 @@ clear;
 close all;
 clc;
 
+
+disp("Teste Recursivo de uma rede ESN utilizando dados de um seno com ruido")
 rng('default')
 rng(0)
 
 
 %% Gera os dados
 t = 0:0.01:30;
-seno = sin(2*pi*0.5*t) + 0.1*randn(size(t));
+seno = 10*sin(2*pi*0.5*t) + randn(size(t));
 X = seno(1:end-1);
 Y = seno(2:end);
 t = t(1:end-1);
@@ -29,6 +31,9 @@ X_train = X(:,1:amostras_treino);
 Y_train = Y(:,1:amostras_treino);
 X_test = X(:,amostras_treino+1:end);
 Y_test = Y(:,amostras_treino+1:end);
+
+t_train = t(1:amostras_treino);
+t_test = t(amostras_treino+1:end);
 
 %% Cria ESN
 nReservoir = 1000; % Tamanho do Reservatorio w
@@ -48,8 +53,19 @@ esn = ESN(nin, nout, nReservoir, ...
 %% Treina ESN
 warmup = 200;
 esn.train(X_train, Y_train, warmup, 1e-6);
+esn.resetState();
+
+
 
 %% Avalia a rede com os dados de teste
+
+%aquece a rede
+X_warmup = X_train(:,end-warmup:end);
+for i=1:warmup
+    esn.predict(X_warmup(:,i));
+end
+
+
 Y_pred = [];
 y = esn.predict(X_test(:,1));
 for i = 1:amostras_teste
@@ -58,20 +74,20 @@ for i = 1:amostras_teste
     Y_pred = [Y_pred, y];
 end
 
-subplot(1,2,1)
+
 hold on;
 title("Trajetoria")
 grid on;
-plot(t,X,'LineWidth',4,DisplayName="Dados completos")
-plot(t(1:amostras_treino), X_train,'LineWidth',2,DisplayName="Dados treino")
-plot(t(amostras_treino+1:end), Y_pred,'LineWidth',2,DisplayName="Previsão da Rede")
-ylabel("sin(t)")
+plot(t_train,Y_train,'LineWidth',3,DisplayName="Treino")
+plot(t_test,Y_test,'LineWidth',4,DisplayName="Teste")
+plot(t_test,Y_pred,'LineWidth',3,DisplayName="ESN")
+ylabel("Seno")
 xlabel("Amostra")
-legend('Box','off','Location','best');
-subplot(1,2,2)
+legend('Box','off','Location','southoutside','Orientation','horizontal');
+figure
 title("Erro Normalizado")
 erro = abs(Y_pred-Y_test)/(max(Y)-min(Y));
 grid on;
-plot(t(amostras_treino+1:end), erro,'LineWidth',2)
+plot(t(amostras_treino+1:end), erro,'LineWidth',3)
 ylabel("Erro normalizado")
 xlabel("Amostra")
