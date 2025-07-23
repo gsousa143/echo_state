@@ -8,13 +8,12 @@ clc;
 
 
 disp("Teste Recursivo de uma rede ESN utilizando dados de um seno com ruido")
-rng('default')
 rng(0)
 
 
 %% Gera os dados
 t = 0:0.01:30;
-seno = 10*sin(2*pi*0.5*t) + randn(size(t));
+seno = 10*sin(2*pi*0.5*t) + 0.5*randn(size(t));
 X = seno(1:end-1);
 Y = seno(2:end);
 t = t(1:end-1);
@@ -51,8 +50,9 @@ esn = ESN(nin, nout, nReservoir, ...
     'spectralRadius', 0.9);
 
 %% Treina ESN
-warmup = 200;
-esn.train(X_train, Y_train, warmup, 1e-6);
+warmup = 100;
+esn.add_data(X_train, Y_train, warmup);
+[best_mse, best_reg] = esn.train_cv(1e-8, 1e-2, 20, 5)
 esn.resetState();
 
 

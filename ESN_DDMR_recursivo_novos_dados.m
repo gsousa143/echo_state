@@ -12,9 +12,45 @@ rng('default')
 rng(0)
 
 
+
+
+%% Cria ESN
+nReservoir = 300; % Tamanho do Reservatorio w
+nin = 5; % Numero de Entradas
+nout = 3; % Numero de saidas
+
+
+esn = ESN(nin, nout, nReservoir, ...
+    'leakrate', 0.1, ...
+    'density', 1, ...
+    'inputScaling', 0.01, ...
+    'biasScaling', 0.05, ...
+    'noise', 1e-5, ...
+    'spectralRadius', 0.9);
+
+
+
 %% Coleta de Dados
 
-%%Dados do Qbot 2
+warmup = 50;
+%Dados do Qbot 2
+trajetorias = ["dados_qbot_ofbg_zzx.mat", "dados_qbot_ofbg_cir.mat", "dados_qbot_ofbg_dia.mat"];
+for trajetoria=trajetorias
+    load(trajetoria);
+    dados = dados(1:10:end,:); %reduzir o numero de amostras
+    x_a = dados(:,1);
+    y_a = dados(:,2);
+    theta = dados(:,3);
+    phi_r = dados(:,4);
+    phi_l = dados(:,5);
+    controls = [phi_r, phi_l];
+    states = [x_a, y_a, theta];
+    X_train = [states(1:end-1,:), controls(1:end-1,:)]';
+    Y_train = states(2:end,:)';
+    esn.add_data(X_train, Y_train, warmup);
+end
+
+
 load("dados_qbot_ofbg_inf.mat");
 dados = dados(1:10:end,:); %reduzir o numero de amostras
 x_a = dados(:,1);
@@ -27,37 +63,22 @@ states = [x_a, y_a, theta];
 X_train = [states(1:end-1,:), controls(1:end-1,:)]';
 Y_train = states(2:end,:)';
 n_amostras = size(X_train,2);
-
-
 T = 0.1;
 
 t = T*(0:n_amostras-1);
 
-%%Dados Virtuais
-% load("dados_virtuais_DDMR.mat")
-
-
-
-%% Cria ESN
-nReservoir = 100; % Tamanho do Reservatorio w
-nin = size(X_train,1); % Numero de Entradas
-nout = size(Y_train,1); % Numero de saidas
-
-
-esn = ESN(nin, nout, nReservoir, ...
-    'leakrate', 0.1, ...
-    'density', 1, ...
-    'inputScaling', 0.1, ...
-    'biasScaling', 0.05, ...
-    'noise', 1e-5, ...
-    'spectralRadius', 0.9);
-
 %% Treina ESN
-warmup = 50;
-% [best_error, best_reg] = esn.train_cv(X_train, Y_train, warmup, 1e-8, 1e-2);
-train_mse = esn.train(X_train,Y_train, warmup, 1e-8)
-esn.resetState()
+
+esn.train_cv(1e-8, 1e-2, 20, 5)
+
+
 %% Avalia a rede com os dados de teste
+
+%aquece a rede
+for i=1:warmup
+    esn.predict(X_train(:,1));
+end
+
 Y_pred = [];
 y = esn.predict(X_train(:,1));
 for i = 1:n_amostras
@@ -78,6 +99,7 @@ title("Trajetoria")
 grid on;
 plot(X_train(1,:),X_train(2,:),'LineWidth',4,DisplayName="Treino")
 plot(Y_pred(1,:),Y_pred(2,:),'LineWidth',3,DisplayName="ESN")
+
 
 legend('Box','off','Location','best');
 subplot(1,2,2)
@@ -104,6 +126,7 @@ for i = 1:nout
 end
 for i = 1:nout
     subplot(2,nout,nout+i)
+    %erros normalizados
     plot(t,erro(i,:), 'LineWidth',3)
     xlabel("Tempo (s)");
     ylabel("Erro Normalizado em" + estados(i));

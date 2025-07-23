@@ -32,8 +32,10 @@ T = 0.1;
 
 
 
-% %Dados Virtuais
+% %%Dados Virtuais
 % load("dados_virtuais_DDMR.mat")
+% X = X(:,1:end/4);
+% Y = Y(:,1:end/4);
 
 
 
@@ -63,19 +65,20 @@ nout = size(Y,1); % Numero de saidas
 
 
 esn = ESN(nin, nout, nReservoir, ...
-    'leakrate', 0.1, ...
-    'density', 0.01, ...
+    'leakrate', 0.3, ...
+    'density', 1, ...
     'inputScaling', 0.1, ...
-    'biasScaling', 0.01, ...
+    'biasScaling', 0.05, ...
     'feedbackScaling', 0.0, ...
     'noise', 1e-5, ...
     'spectralRadius', 0.9);
 
 %% Treina ESN
 warmup = 100;
-% [best_mse, best_reg] = esn.train_cv(X_train, Y_train, warmup, 1e-8, 1e-2, 20, 5)
-train_mse = esn.train(X_train,Y_train, warmup, 1e-8);
-esn.resetState();
+
+esn.add_data(X_train, Y_train, warmup);
+[best_mse, best_reg] = esn.train_cv(1e-8, 1e-2, 20, 5);
+
 %% Avalia a rede com os dados de teste
 Y_pred = [];
 
@@ -84,7 +87,10 @@ X_warmup = X_train(:,end-warmup:end);
 for i=1:warmup
     esn.predict(X_warmup(:,i));
 end
-
+% %aquece a rede
+% for i=1:warmup
+%     esn.predict(X_train(:,1));
+% end
 
 
 y = esn.predict(X_test(:,1));
@@ -109,7 +115,6 @@ grid on;
 plot(X_train(1,:),X_train(2,:),'LineWidth',3,DisplayName="Treino")
 plot(Y_test(1,:),Y_test(2,:),'LineWidth',4,DisplayName="Teste")
 plot(Y_pred(1,:),Y_pred(2,:),'LineWidth',3,DisplayName="ESN")
-axis padded
 legend('Box','off','Location','best');
 subplot(1,2,2)
 hold on;
@@ -119,7 +124,6 @@ erro_traj = sqrt((X(1,amostras_treino+1:end)-Y_pred(1,:)).^2 + (X(2,amostras_tre
 plot(t_test, erro_traj,'lineWidth',2);
 xlabel("Tempo (s)");
 ylabel("Erro (m)");
-axis padded
 
 figure("Name","Informações dos Estados");
 sgtitle("Estados")
@@ -135,7 +139,8 @@ for i = 1:nout
     ylabel(estados(i));
     grid on;
 end
-axis padded
+
+
 for i = 1:nout
     subplot(2,nout,nout+i)
     plot(t_test,erro(i,:), 'LineWidth',3)
@@ -143,7 +148,7 @@ for i = 1:nout
     ylabel("Erro Normalizado em" + estados(i));
     grid on;
 end
-axis padded
+
 
 figure("Name","Manipulaveis")
 sgtitle("Variaveis Manipulaveis")
